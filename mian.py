@@ -1,16 +1,9 @@
 import gurobipy as gp
-import numpy
 from gurobipy import *
 import numpy as np
 import pandas as pd
-import time
-import pwlf
-from pwlf import *
-import pickle  # 用于存储变量F和T
-import os
 import matplotlib.pyplot as plt
 from openpyxl import Workbook
-from pypower import case118
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用于正常显示中文标签
 plt.rcParams['axes.unicode_minus'] = False  # 用于正常显示负号
 
@@ -206,10 +199,10 @@ def set_params():
 MP = gp.Model(name = 'MP')
 cases = Cases()
 line = Line()
-su = SU()D:\
+su = SU()
 ru = RU()
 sne = SNE()
-read(r".\Data\P10Data.xlsx")
+read(r"E:\PycharmProjects\pythonProject\Data\P10Data.xlsx")
 params = {}
 set_params()
 
@@ -285,12 +278,6 @@ def add_MP_cost_constr(var,crim):
     rutv2 = ru.tv2
     suNL = len(La)
     ruNL = len(Lb)
-    suop = su.Cop
-    susd = su.Csd
-    ruop = ru.Cop
-    rusd = ru.Csd
-    suV0 = su.V0
-    ruV0 = ru.V0
     Pamax = su.Pmax
     Pbmax = ru.Pmax
 
@@ -380,12 +367,9 @@ def add_MP_HVDC_constr(var,crim):
     Rdc = line.Rdc
     Pdcmin = line.Pdcmin
     Pdcmax = line.Pdcmax
-    TM = line.TM
-    X = line.X
     Q = line.Q
     delta = line.delta
     T = params['T']
-    time_interval = params['time_interval']
     MP.addConstrs(Pdc[t] - Pdc[t-1] >= -vdc[t]*Rdc for t in T[1:])
     MP.addConstrs(Pdc[t] - Pdc[t - 1] <= vdc[t] * Rdc for t in T[1:])
     MP.addConstrs(Pdc[t] >= Pdcmin for t in T)
@@ -568,101 +552,7 @@ def add_SP_var():
 
     return var_dict_SP
 
-def add_SP_constr(var,Xa,Xb,Vdc):
-    Ca = var['Ca']
-    Cb = var['Cb']
-    PA = var['PA']
-    PB = var['PB']
-    ca = var['ca']
-    cb = var['cb']
-    Cw = var['Cw']
-    cw = var['cw']
-    Pwcur = var['Pwcur']
-    deltaa = var['deltaa']
-    deltab = var['deltab']
-    PAMAX = var['PAMAX']
-    PBMAX = var['PBMAX']
-    Pdc = var['Pdc']
-    Pwact = var['Pwact']
-    u = var['u']
-    Dt = cases.Dt
-    sigma = cases.sigma
-    Rdc = line.Rdc
-    Pdcmin = line.Pdcmin
-    Pdcmax = line.Pdcmax
-    Pwpred = sne.Pwpred
-    Q = line.Q
-    delta = line.delta
 
-    Pamax = su.Pmax
-    Pamin = su.Pmin
-    Pbmax = ru.Pmax
-    Pbmin = ru.Pmin
-    suRU = su.RU
-    ruRU = ru.RU
-
-
-    T = params['T']
-    La = params['La']
-    Lb = params['Lb']
-    J = params['su_unit_num']
-    K = params['ru_unit_num']
-
-    suc1 = su.c1
-    suc2 = su.c2
-    suc3 = su.c3
-    sutv1 = su.tv1
-    sutv2 = su.tv2
-    ruc1 = ru.c1
-    ruc2 = ru.c2
-    ruc3 = ru.c3
-    rutv1 = ru.tv1
-    rutv2 = ru.tv2
-
-    suNL = len(La)
-    ruNL = len(Lb)
-
-    FA = np.column_stack([suc1, suc2, suc3])
-    FB = np.column_stack([ruc1, ruc2, ruc3])
-    TVA = np.column_stack([sutv1, sutv2])
-    TVB = np.column_stack([rutv1, rutv2])
-
-
-    SP.addConstrs(deltaa[j, 0, t] <= TVA[j, 0] for t in T for j in J) #
-    SP.addConstrs(deltaa[j, suNL - 1, t] <= Pamax[j] - TVA[j, suNL - 2] for t in T for j in J) #
-    SP.addConstrs(deltaa[j, l, t] <= TVA[j, l] - TVA[j, l - 1] for j in J for t in T for l in La[1:suNL - 1]) #
-
-
-
-
-
-    SP.addConstrs(deltab[k, 0, t] <= TVB[k, 0] for t in T for k in K) #
-    SP.addConstrs(deltab[k, ruNL - 1, t] <= Pbmax[k] - TVB[k, ruNL - 2] for t in T for k in K) #
-    SP.addConstrs(deltab[k, l, t] <= TVB[k, l] - TVB[k, l - 1] for k in K for t in T for l in Lb[1:suNL - 1]) #
-
-
-
-    SP.addConstrs(gp.quicksum(deltaa[j,l,t] for l in La) <= PAMAX[j, t] for t in T for j in J) #
-    SP.addConstrs(gp.quicksum(deltaa[j,l,t] for l in La) >= Pamin[j] * Xa[j, t] for t in T for j in J) #
-    SP.addConstrs(gp.quicksum(deltab[k,l,t] for l in Lb) <= PBMAX[k, t] for t in T for k in K) #
-    SP.addConstrs(gp.quicksum(deltab[k,l,t] for l in Lb) >= Pbmin[k] * Xb[k, t] for k in K for t in T) #
-    SP.addConstrs(PAMAX[j, t] <= Pamax[j] * Xa[j, t] for j in J for t in T) #
-    SP.addConstrs(PBMAX[k, t] <= Pbmax[k] * Xb[k, t] for k in K for t in T) #
-    SP.addConstrs(
-        PAMAX[j, t] <= gp.quicksum(deltaa[j,l,t-1] for l in La) + suRU[j] * Xa[j, t - 1] + Pamin[j] * (Xa[j, t] - Xa[j, t - 1]) + Pamax[j] * (
-                1 - Xa[j, t]) for j in J for t in T[1:]) #
-    SP.addConstrs(
-        PBMAX[k, t] <= gp.quicksum(deltab[k,l,t-1] for l in Lb) + ruRU[k] * Xb[k, t - 1] + Pbmin[k] * (Xb[k, t] - Xb[k, t - 1]) + Pbmax[k] * (
-                1 - Xb[k, t]) for k in K for t in T[1:]) #
-    SP.addConstrs(gp.quicksum(deltaa[j,l,t] for l in La for j in J) + Pwpred[t] - Pwcur[t] - (gp.quicksum(deltaa[j,l,t-1] for l in La for j in J) + Pwpred[t-1] - Pwcur[t-1]) >= -Vdc[t] * Rdc for t in T[1:])
-    SP.addConstrs(gp.quicksum(deltaa[j,l,t] for l in La for j in J) + Pwpred[t] - Pwcur[t] - (gp.quicksum(deltaa[j,l,t-1] for l in La for j in J) + Pwpred[t-1] - Pwcur[t-1]) <= Vdc[t] * Rdc for t in T[1:])
-    SP.addConstrs(gp.quicksum(deltaa[j,l,t] for l in La for j in J) + Pwpred[t] - Pwcur[t] >= Pdcmin for t in T)
-    SP.addConstrs(gp.quicksum(deltaa[j,l,t] for l in La for j in J) + Pwpred[t] - Pwcur[t] <= Pdcmax for t in T)
-    SP.addConstr(gp.quicksum(gp.quicksum(deltaa[j,l,t] for l in La for j in J) + Pwpred[t] - Pwcur[t] * delta for t in T) == Q)
-    SP.addConstrs(Pwpred[t] - Pwcur[t] >= 0 for t in T)
-
-
-    SP.addConstrs(gp.quicksum(deltab[k,l,t] for l in Lb for k in K) + gp.quicksum(deltaa[j,l,t] for l in La for j in J) + Pwpred[t] - Pwcur[t] == Dt[t] +u[t] * sigma[t] for t in T)
 
 def add_SP_Duality_constr(var):
     omega1 = var['omega1']
@@ -762,287 +652,6 @@ def add_SP_Duality_constr(var):
     SP.addConstr(
         -omega13[23] + omega14[23] - omega16 - omega17[23] - omega18[23] + omega19[23] -omega15[23] <= line.cw)
 
-def add_SP_KKT1_constr(var,Xa,Xb,Vdc):
-
-    deltaa = var['deltaa']
-    deltab = var['deltab']
-    PAMAX = var['PAMAX']
-    PBMAX = var['PBMAX']
-
-    Pwcur = var['Pwcur']
-    omega1 = var['omega1']
-    omega2 = var['omega2']
-    omega3 = var['omega3']
-    omega4 = var['omega4']
-    omega5 = var['omega5']
-    omega6 = var['omega6']
-    omega7 = var['omega7']
-    omega8 = var['omega8']
-    omega9 = var['omega9']
-    omega10 = var['omega10']
-    omega11 = var['omega11']
-    omega12 = var['omega12']
-    omega13 = var['omega13']
-    omega14 = var['omega14']
-    omega15 = var['omega15']
-    omega18 = var['omega18']
-    omega19 = var['omega19']
-    omega20 = var['omega20']
-    omega21 = var['omega21']
-
-    v1 = var['v1']
-    v2 = var['v2']
-    v3 = var['v3']
-    v4 = var['v4']
-    v5 = var['v5']
-    v6 = var['v6']
-    v7 = var['v7']
-    v8 = var['v8']
-    v9 = var['v9']
-    v10 = var['v10']
-    v11 = var['v11']
-    v12 = var['v12']
-    v13 = var['v13']
-    v14 = var['v14']
-    v15 = var['v15']
-    v18 = var['v18']
-    v19 = var['v19']
-    v16 = var['v16']
-    v17 = var['v17']
-
-
-    Rdc = line.Rdc
-    Pdcmin = line.Pdcmin
-    Pdcmax = line.Pdcmax
-    Pwpred = sne.Pwpred
-
-
-    Pamax = su.Pmax
-    Pamin = su.Pmin
-    Pbmax = ru.Pmax
-    Pbmin = ru.Pmin
-    suRU = su.RU
-    ruRU = ru.RU
-
-    T = params['T']
-    La = params['La']
-    Lb = params['Lb']
-    J = params['su_unit_num']
-    K = params['ru_unit_num']
-
-
-    sutv1 = su.tv1
-    sutv2 = su.tv2
-
-    rutv1 = ru.tv1
-    rutv2 = ru.tv2
-
-
-    suNL = len(La)
-    ruNL = len(Lb)
-
-
-    TVA = np.column_stack([sutv1, sutv2])
-    TVB = np.column_stack([rutv1, rutv2])
-
-    SP.addConstrs(-deltaa[j, 0, t] + TVA[j, 0] <= M * (1 - v1[j, t]) for j in J for t in T)
-    SP.addConstrs(omega1[j, t] <= M * v1[j, t] for j in J for t in T)
-    SP.addConstrs(-deltaa[j, suNL - 1, t] + Pamax[j] - TVA[j, suNL - 2] <= M * (1 - v2[j, t]) for j in J for t in T)
-    SP.addConstrs(omega2[j, t] <= M * v2[j, t] for j in J for t in T)
-    SP.addConstrs(
-        -deltaa[j, l, t] + TVA[j, l] - TVA[j, l - 1] <= M * (1 - v3[j, l, t]) for j in J for l in La[1:suNL - 1] for t
-        in T)
-    SP.addConstrs(omega3[j, l, t] <= M * v3[j, l, t] for j in J for l in La[1:suNL - 1] for t in T)
-    SP.addConstrs(-deltab[k, 0, t] + TVB[k, 0] <= M * (1 - v4[k, t]) for k in K for t in T)
-    SP.addConstrs(omega4[k, t] <= M * v4[k, t] for k in K for t in T)
-    SP.addConstrs(-deltab[k, ruNL - 1, t] + Pbmax[k] - TVB[k, ruNL - 2] <= M * (1 - v5[k, t]) for k in K for t in T)
-    SP.addConstrs(omega5[k, t] <= M * v5[k, t] for k in K for t in T)
-    SP.addConstrs(-deltab[k, l, t] + TVB[k, l] - TVB[k, l - 1] <= M * (1 - v6[k, l, t]) for t in T for k in K for l in
-                  Lb[1:ruNL - 1])
-    SP.addConstrs(omega6[k, l, t] <= M * v6[k, l, t] for k in K for l in Lb[1:ruNL - 1] for t in T)
-    SP.addConstrs(-gp.quicksum(deltaa[j, l, t] for l in La) + PAMAX[j, t] <= M * (1 - v7[j, t]) for t in T for j in J)
-    SP.addConstrs(omega7[j, t] <= M * v7[j, t] for j in J for t in T)
-    SP.addConstrs(
-        gp.quicksum(deltaa[j, l, t] for l in La) - Pamin[j] * Xa[j, t] <= M * (1 - v8[j, t]) for j in J for t in T)
-    SP.addConstrs(omega8[j, t] <= M * v8[j, t] for j in J for t in T)
-    SP.addConstrs(-gp.quicksum(deltab[k, l, t] for l in Lb) + PBMAX[k, t] <= M * (1 - v9[k, t]) for k in K for t in T)
-    SP.addConstrs(omega9[k, t] <= M * v9[k, t] for k in K for t in T)
-    SP.addConstrs(
-        gp.quicksum(deltab[k, l, t] for l in Lb) - Pbmin[k] * Xb[k, t] <= M * (1 - v10[k, t]) for k in K for t in T)
-    SP.addConstrs(omega10[k, t] <= M * v10[k, t] for k in K for t in T)
-    SP.addConstrs(gp.quicksum(deltaa[j, l, t-1] for l in La) - PAMAX[j, t] + suRU[j] * Xa[j, t - 1] + Pamin[j] * (
-            Xa[j, t] - Xa[j, t - 1]) + Pamax[j] * (
-                          1 - Xa[j, t]) <= M * (1 - v11[j, t]) for j in J for t in T[1:])
-    SP.addConstrs(omega11[j, t] <= M * v11[j, t] for j in J for t in T[1:])
-    SP.addConstrs(gp.quicksum(deltab[k, l, t-1] for l in Lb) - PBMAX[k, t] + ruRU[k] * Xb[k, t - 1] + Pbmin[k] * (
-            Xb[k, t] - Xb[k, t - 1]) + Pbmax[k] * (
-                          1 - Xb[k, t]) <= M * (1 - v12[k, t]) for k in K for t in T[1:])
-    SP.addConstrs(omega12[k, t] <= M * v12[k, t] for k in K for t in T[1:])
-    SP.addConstrs(gp.quicksum(deltaa[j, l, t] - deltaa[j, l, t - 1] for j in J for l in La) -Pwcur[t] + Pwcur[t-1] +Vdc[t] * Rdc + Pwpred[t] - Pwpred[t-1] <= M * (1 - v13[t]) for t in T[1:])
-    SP.addConstrs(omega13[t] <= M * v13[t] for t in T[1:])
-    SP.addConstrs(
-        gp.quicksum(-deltaa[j, l, t] + deltaa[j, l, t - 1] for j in J for l in La) +Pwcur[t] - Pwcur[t-1] + Vdc[t] * Rdc - Pwpred[t] + Pwpred[t-1] <= M * (
-                1 - v14[t]) for t in T[1:])
-    SP.addConstrs(omega14[t] <= M * v14[t] for t in T[1:])
-
-    SP.addConstrs(Pwpred[t] - Pwcur[t] <= M * (1-v15[t]) for t in T)
-    SP.addConstrs(omega15[t] <= M * v15[t] for t in T)
-
-    SP.addConstrs(
-        gp.quicksum(deltaa[j, l, t] for j in J for l in La) -Pwcur[t] - Pdcmin + Pwpred[t] <= M * (1 - v18[t]) for t in T)
-    SP.addConstrs(omega18[t] <= M * v18[t] for t in T)
-    SP.addConstrs(
-        gp.quicksum(-deltaa[j, l, t] for j in J for l in La) + Pwcur[t] - Pwpred[t] + Pdcmax <= M * (1 - v19[t]) for t in T)
-    SP.addConstrs(omega19[t] <= M * v19[t] for t in T)
-    SP.addConstrs(-PAMAX[j,t] + Pamax[j] * Xa[j,t] <= M * (1-v16[j,t]) for t in T for j in J)
-    SP.addConstrs(omega20[j,t] <= M * v16[j,t] for t in T for j in J)
-    SP.addConstrs(-PBMAX[k,t] + Pbmax[k] * Xb[k,t] <= M * (1-v17[k,t]) for k in K for t in T)
-    SP.addConstrs(omega21[k,t] <= M * v17[k,t] for k in K for t in T)
-
-def add_SP_KKT2_constr(var):
-    omega1 = var['omega1']
-    omega2 = var['omega2']
-    omega3 = var['omega3']
-    omega4 = var['omega4']
-    omega5 = var['omega5']
-    omega6 = var['omega6']
-    omega7 = var['omega7']
-    omega8 = var['omega8']
-    omega9 = var['omega9']
-    omega10 = var['omega10']
-    omega11 = var['omega11']
-    omega12 = var['omega12']
-    omega13 = var['omega13']
-    omega14 = var['omega14']
-    omega15 = var['omega15']
-    omega16 = var['omega16']
-    omega17 = var['omega17']
-    omega18 = var['omega18']
-    omega19 = var['omega19']
-    omega20 = var['omega20']
-    omega21 = var['omega21']
-    deltaa = var['deltaa']
-    deltab = var['deltab']
-    PAMAX = var['PAMAX']
-    PBMAX = var['PBMAX']
-    Pwact = var['Pwact']
-    Pwcur = var['Pwcur']
-    v21 = var['v21']
-    v22 = var['v22']
-    v23 = var['v23']
-    v24 = var['v24']
-    v25 = var['v25']
-    v26 = var['v26']
-    v27 = var['v27']
-    v28 = var['v28']
-    v29 = var['v29']
-
-    suc1 = su.c1
-    suc2 = su.c2
-    suc3 = su.c3
-    ruc1 = ru.c1
-    ruc2 = ru.c2
-    ruc3 = ru.c3
-
-    T = params['T']
-    La = params['La']
-    Lb = params['Lb']
-    J = params['su_unit_num']
-    K = params['ru_unit_num']
-    suNL = len(La)
-    ruNL = len(Lb)
-
-    FA = np.column_stack([suc1, suc2, suc3])
-    FB = np.column_stack([ruc1, ruc2, ruc3])
-
-    SP.addConstrs(omega1[j, t] + omega7[j, t] - omega8[j, t] - omega11[j, t+1] - omega13[t]
-                  + omega13[t + 1] + omega14[t] - omega14[t + 1] - omega16 - omega17[t] - omega18[t] + omega19[t] + FA[
-                      j, 0] <= M * (1 - v21[j, t]) for j in J for t in T[1:23])
-    SP.addConstrs(omega1[j, 0] + omega7[j, 0] - omega8[j, 0] - omega11[j,1]
-                  + omega13[1] - omega14[1] - omega16 - omega17[0] - omega18[0] + omega19[0] + FA[j, 0] <= M * (
-                              1 - v21[j, 0]) for j in J)
-    SP.addConstrs(omega1[j, 23] + omega7[j, 23] - omega8[j, 23] - omega13[23]
-                  + omega14[23] - omega16 - omega17[23] - omega18[23] + omega19[23] + FA[j, 0] <= M * (1 - v21[j, 23])
-                  for j in J)
-    SP.addConstrs(deltaa[j, 0, t] <= M * v21[j, t] for j in J for t in T)
-
-    SP.addConstrs(omega2[j, t] + omega7[j, t] - omega8[j, t] - omega11[j, t+1] - omega13[t]
-                  + omega13[t + 1] + omega14[t] - omega14[t + 1] - omega16 - omega17[t] - omega18[t] + omega19[t] + FA[
-                      j, suNL - 1] <= M * (1 - v22[j, t]) for j in J for t
-                  in T[1:23])
-    SP.addConstrs(omega2[j, 0] + omega7[j, 0] - omega8[j, 0] - omega11[j,1]
-                  + omega13[1] - omega14[1] - omega16 - omega17[0] - omega18[0] + omega19[0] + FA[j, suNL - 1] <= M * (
-                              1 - v22[j, 0]) for j in
-                  J)
-    SP.addConstrs(omega2[j, 23] + omega7[j, 23] - omega8[j, 23] - omega13[23]
-                  + omega14[23] - omega16 - omega17[23] - omega18[23] + omega19[23] + FA[j, suNL - 1] <= M * (
-                              1 - v22[j, 23]) for j in J)
-    SP.addConstrs(deltaa[j, suNL - 1, t] <= M * v22[j, t] for j in J for t in T)
-
-    SP.addConstrs(omega3[j, l, t] + omega7[j, t] - omega8[j, t] - omega11[j, t+1] - omega13[t]
-                  + omega13[t + 1] + omega14[t] - omega14[t + 1] - omega16 - omega17[t] - omega18[t] + omega19[t] + FA[
-                      j, l] <= M * (1 - v23[j, l, t]) for j in J
-                  for t in T[1:23] for l in La[1:suNL - 1])
-    SP.addConstrs(omega3[j, l, 0] + omega7[j, 0] - omega8[j, 0] -omega11[j,1]
-                  + omega13[1] - omega14[1] - omega16 - omega17[0] - omega18[0] + omega19[0] + FA[j, l] <= M * (
-                              1 - v23[j, l, 0]) for j in J for
-                  l in La[1:suNL - 1])
-    SP.addConstrs(omega3[j, l, 23] + omega7[j, 23] - omega8[j, 23] - omega13[23]
-                  + omega14[23] - omega16 - omega17[23] - omega18[23] + omega19[23] + FA[j, l] <= M * (
-                              1 - v23[j, l, 23]) for j in J for l in
-                  La[1:suNL - 1])
-    SP.addConstrs(deltaa[j, l, t] <= M * v23[j, l, t] for j in J for l in La[1:suNL - 1] for t in T)
-
-    SP.addConstrs(
-        omega4[k, t] + omega9[k, t] - omega10[k, t] - omega12[k, t+1] - omega17[t] + FB[k, 0] <= M * (1 - v24[k, t]) for k
-        in K for t in T[:23])
-    SP.addConstrs(
-        omega4[k, 23] + omega9[k, 23] - omega10[k, 23] - omega17[23] + FB[k, 0] <= M * (1 - v24[k, 23]) for k in K)
-    SP.addConstrs(deltab[k, 0, t] <= M * v24[k, t] for k in K for t in T)
-
-    SP.addConstrs(
-        omega5[k, t] + omega9[k, t] - omega10[k, t] - omega12[k, t+1] - omega17[t] + FB[k, ruNL - 1] <= M * (
-                    1 - v25[k, t]) for k in K for t in
-        T[:23])
-    SP.addConstrs(
-        omega5[k, 23] + omega9[k, 23] - omega10[k, 23] - omega17[23] + FB[k, ruNL - 1] <= M * (1 - v25[k, 23]) for k in K)
-    SP.addConstrs(deltab[k, ruNL - 1, t] <= M * v25[k, t] for k in K for t in T)
-
-    SP.addConstrs(
-        omega6[k, l, t] + omega9[k, t] - omega10[k, t] - omega12[k, t+1] - omega17[t] + FB[k, l] <= M * (1 - v26[k, l, t])
-        for k in K for t in
-        T[:23] for l in Lb[1:ruNL - 1])
-    SP.addConstrs(
-        omega6[k, l, 23] + omega9[k, 23] - omega10[k, 23] - omega17[23] + FB[k, l] <= M * (1 - v26[k, l, 23]) for k in K for
-        l in Lb[1:ruNL - 1])
-    SP.addConstrs(deltab[k, l, t] <= M * v26[k, l, t] for k in K for l in Lb[1:ruNL - 1] for t in T)
-
-    SP.addConstrs(-omega7[j, t] + omega11[j, t] + omega20[j,t] <= M * (1 - v27[j, t]) for j in J for t in T[1:])
-    SP.addConstrs(-omega7[j, 0] +omega20[j,0] <= M * (1 - v27[j, 0]) for j in J)
-    SP.addConstrs(PAMAX[j, t] <= M * v27[j, t] for j in J for t in T)
-
-    SP.addConstrs(-omega9[k, t] + omega12[k, t] +omega21[k,t] <= M * (1 - v28[k, t]) for k in K for t in T[1:])
-    SP.addConstrs(-omega9[k, 0] +omega21[k,0] <= M * (1 - v28[k, 0]) for k in K)
-    SP.addConstrs(PBMAX[k, t] <= M * v28[k, t] for k in K for t in T)
-
-    SP.addConstrs(
-        omega13[t] - omega13[t + 1] - omega14[t] + omega14[t + 1] + omega16 + omega17[t] + omega18[t] -
-        omega19[t] +omega15[t] + line.cw <= M * (1 - v29[t]) for t in T[1:23])
-    SP.addConstr(
-        -omega13[1] + omega14[1] + omega16 + omega17[0] + omega18[0] - omega19[0] +omega15[0]+ line.cw <= M * (
-                    1 - v29[0]))
-    SP.addConstr(
-        omega13[23] - omega14[23] + omega16 + omega17[23] + omega18[23] - omega19[23] +omega15[23]+ line.cw <= M * (
-                    1 - v29[23]))
-    SP.addConstrs(Pwcur[t] <= M * v29[t] for t in T)
-
-def add_SP_constrs(var,Xa,Xb,Vdc):
-
-
-    add_SP_Duality_constr(var)
-
-
-
 
 
 def SP_solve(Xa,Xb,Vdc):
@@ -1054,9 +663,7 @@ def SP_solve(Xa,Xb,Vdc):
     omega4 = var_dict_SP['omega4']
     omega5 = var_dict_SP['omega5']
     omega6 = var_dict_SP['omega6']
-    omega7 = var_dict_SP['omega7']
     omega8 = var_dict_SP['omega8']
-    omega9 = var_dict_SP['omega9']
     omega10 = var_dict_SP['omega10']
     omega11 = var_dict_SP['omega11']
     omega12 = var_dict_SP['omega12']
@@ -1075,9 +682,7 @@ def SP_solve(Xa,Xb,Vdc):
     Rdc = line.Rdc
     Pdcmin = line.Pdcmin
     Pdcmax = line.Pdcmax
-    Pwpred = sne.Pwpred
     Q = line.Q
-    delta = line.delta
 
     Pamax = su.Pmax
     Pamin = su.Pmin
@@ -1092,22 +697,15 @@ def SP_solve(Xa,Xb,Vdc):
     J = params['su_unit_num']
     K = params['ru_unit_num']
 
-    suc1 = su.c1
-    suc2 = su.c2
-    suc3 = su.c3
     sutv1 = su.tv1
     sutv2 = su.tv2
-    ruc1 = ru.c1
-    ruc2 = ru.c2
-    ruc3 = ru.c3
     rutv1 = ru.tv1
     rutv2 = ru.tv2
 
     suNL = len(La)
     ruNL = len(Lb)
 
-    FA = np.column_stack([suc1, suc2, suc3])
-    FB = np.column_stack([ruc1, ruc2, ruc3])
+
     TVA = np.column_stack([sutv1, sutv2])
     TVB = np.column_stack([rutv1, rutv2])
     Pwpred = sne.Pwpred
@@ -1137,7 +735,7 @@ def SP_solve(Xa,Xb,Vdc):
                     + gp.quicksum((-Pdcmax + Pwpred[t]) * omega19[t] for t in T)
                     + gp.quicksum(-Pamax[j] * Xa[j, t] * omega20[j, t] for j in J for t in T)
                     + gp.quicksum(-Pbmax[k] * Xb[k, t] * omega21[k, t] for k in K for t in T), gurobipy.GRB.MAXIMIZE)
-    add_SP_constrs(var_dict_SP,Xa,Xb,Vdc)
+    add_SP_Duality_constr(var_dict_SP)
 
 
 
@@ -1157,7 +755,7 @@ def SP_solve(Xa,Xb,Vdc):
 def data_analysis(crim):
     T = params['T']
     X = range(1,params['time_interval']+1)
-    for c in range(crim+1):
+    for c in range(crim):
         x = X
         y = [u[c,t] for t in T]
         plt.plot(x, y, label=f"变量{c + 1}")
@@ -1456,7 +1054,6 @@ if __name__ == "__main__":
         U1.append(UB1)
         etas.append(eta.x)
         spobjs.append(SP.ObjVal)
-        Num.append(SP.NumConstrs)
 
 
 
@@ -1465,5 +1062,4 @@ print("下界", L1)
 print('上界', U1)
 print('eta:', etas)
 print('Q(y):',spobjs)
-print(Num)
 data_analysis(crim)
