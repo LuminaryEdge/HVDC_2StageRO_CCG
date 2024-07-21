@@ -1,5 +1,18 @@
 # HVDC_2StageRO_CCG
 这个仓库包含了针对高压直流潮流问题(HVDC)的二阶段鲁棒优化问题的pythpn求解代码。使用了行列生成算法(C&CG)进行求解。
+This repository contains Python code for solving a two-stage robust optimization problem related to High Voltage Direct Current (HVDC) power flow. The solution employs the Column and Constraint Generation (C&CG) algorithm.
+
+## Key Features
+1. Establishes a robust optimization model for HVDC, including the objective function and constraints.
+2. Utilizes the Column and Constraint Generation (C&CG) algorithm to solve the optimization problem.
+3. Analyzes the solution results and generates relevant data and visualizations.
+
+## Tech Stack
+- Python
+- Jupyter Notebook
+
+## License
+Not specified
 
 ## 模型建立
 （具体内容详见"模型.pdf"）
